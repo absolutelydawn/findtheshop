@@ -1,0 +1,8 @@
+# created by virtualenv automatically
+.venv
+*.xml
+*.iml
+
+# openapi 사용해서 끌어온 json 파일 막는 용
+*.json
+
