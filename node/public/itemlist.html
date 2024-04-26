@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상품리스트 출력 테스트</title>
+</head>
+<body>
+    <form id="word-form">
+        <label for="word">단어 입력:</label>
+        <input type="text" id="word" name="word">
+        <button type="submit">전달</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        document.getElementById("word-form").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const word = document.getElementById("word").value;
+
+            try {
+                const response = await axios.get(`/send_to_fastapi?word=${word}`);
+                document.getElementById("result").innerText = JSON.stringify(response.data);
+            } catch (error) {
+                console.error('오류:', error);
+                document.getElementById("result").innerText = "오류 발생";
+            }
+        });
+    </script>
+</body>
+</html>
