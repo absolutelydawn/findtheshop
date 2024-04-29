@@ -8,6 +8,11 @@
 # date > 작성일자 수집 수정완료
 # rank > 평점 수집 수정완료
 
+# 개선사항 : coding convention 준수하기
+# 만약 쇼핑몰리뷰 탭이 없으면 스크래핑을 중단하고 콘솔에 "No reviews" 출력하기
+# 만약 50글자 이상의 리뷰가 없으면 스크래핑 중단하고 콘솔에 "No reviews_No 50" 출력하기
+# 100개 미만이라도 리뷰 수집이 끝나면 스크래핑 바로 중단
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait

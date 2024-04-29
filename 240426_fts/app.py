@@ -2,14 +2,12 @@
 ###
 # mongoDB에 입력된 리뷰 받아서 서버에 띄우기 :
 # mongoDB에 수집된 리뷰내용  FastAPI서버에서 출력하기
+# myscript.sh로 스크래핑 파일 실행 > mongoDB에 담은 뒤 리뷰내용 조회가능ㄴ
 # 작성자명 : 장다은
-# 작성일자 : 240425
+# 작성일자 : 240426
 # 기타사항 : 
-# 개선 ) 해당페이지 접근 시 scraping_reviews.py가 자동실행되게 해야함,
-#        또는 DB에 저장된 리뷰들을 조회할 수 있어야함
-#        makefile 등으로 서버실행 자동화하기
-#        리뷰내용 조회 시 개선사항 : productId는 있는데 리뷰가 없는 경우 / productId가 잘못된 경우 고려하기
-#        
+# 개선 ) 리뷰내용 조회 시 개선사항 _ productId 있는데 리뷰 없는 경우 / productId가 잘못된 경우 고려
+#        리뷰내용 파싱 추가 : rank(별점), date(작성일자)   
 ###
 from fastapi import FastAPI, HTTPException, Query, Body
 from pymongo import MongoClient
@@ -23,6 +21,9 @@ app = FastAPI()
 client = MongoClient('mongodb://localhost:27017/')
 db = client['fts']
 reviews_collection = db['reviews']
+
+class Product(BaseModel):
+    product_id: str
 
 # main page(추후수정)
 @app.get('/', status_code=200)
@@ -45,13 +46,11 @@ async def getReviews(product_id: str = Query(None, alias="productId")):
     else: # 리뷰가 없다면
         return {"message": "리뷰 검색 결과가 없습니다."}
     
-# selenium파일에 인자값 전달하기
+# selenium파일에 인자값(productId) 전달하기
 @app.post("/submit_product")
-async def submit_product(product_id: str):
+async def submit_product(product: Product):
     with open("product_id.txt", "w") as file:
-        file.write(product_id)
+        file.write(product.product_id)
     
-    # 쉘 스크립트 실행
     subprocess.run(["./myscript.sh"], check=True)
-    
     return {"message": "Product ID received and executed the scraping script."}
