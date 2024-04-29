@@ -1,90 +1,115 @@
 #!/usr/bin/env python
 ###
-# 리뷰 수집하여 mongodb에 입력 :
-# 네이버 openAPI로 받아온 productId 속성과 검색어(query)를 기준으로 productId당 제품리뷰를 수집한다.
+# 리뷰 수집하여 mongoDB에 입력 + .sh으로 fastAPI와 연동
 # 작성자명 : 장다은
-# 작성일자 : 240425
-# 기타사항 : 
-# 개선 ) 별점, 작성일자 스크래핑 로직 추가할것, 작성일자기준으로 sorting하여 스크래핑할것, 
-#        리뷰개수 최대 100개로 설정하여 스크래핑할것, productId를 MongoDB fts DB > item collection 에서 받아오도록 수정
-###
+# 작성일자 : 240429
+# url 수정 : section=review 해서 리뷰탭 바로이동
+# 최신순으로 수집, max 100개리뷰, 글자수 50자 이상
+# date > 작성일자 수집 수정완료
+# rank > 평점 수집 수정완료
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
 import time
 from bs4 import BeautifulSoup
-import pymongo
 from pymongo import MongoClient
-import json
-from pyvirtualdisplay import Display
 from datetime import datetime
 import sys
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException
+from pyvirtualdisplay import Display
 
-###
-# for Linux : Linux 환경에서 selenium 실행 시 필요한 옵션
+# Linux 환경에서 selenium 실행 시 필요한 옵션
 display = Display(visible=0, size=(1920, 1080))
 display.start()
 chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument('--no-sandbox')
 driver = webdriver.Chrome(options=chrome_options)
-###
 
-# MongoDB 클라이언트 초기화 및 데이터베이스 연결
+# MongoDB 연결 설정
 client = MongoClient('mongodb://192.168.1.162:27017/')
-db = client['fts'] # MongoDB DB명 : fts(findtheshop 약자)
-reviews_collection = db['reviews'] # MongoDB Collection명
+db = client['fts']
+reviews_collection = db['reviews']
 
-def saveDatabase(product_id, reviews_json):
-    reviews_data = json.loads(reviews_json)
-    for i, review in enumerate(reviews_data):
+# 리뷰 저장 함수
+def saveDatabase(product_id, reviews):
+    for i, (review_text, review_date, rank) in enumerate(reviews):
         document = {
-            "productId": product_id, # 상품당 id값
-            "contents": review, # 리뷰 본문
-            "rank": i + 1,  # 리뷰당 별점(추후 스크래핑로직 추가할것)
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 작성일자(추후 스크래핑로직 추가할것)
+            "productId": product_id,
+            "contents": review_text,
+            "date": review_date,
+            "rank": rank
         }
-        result = reviews_collection.insert_one(document)
-        print(f"Added review to MongoDB with _id: {result.inserted_id}")
+        reviews_collection.insert_one(document)
+        print(f"Added review with _id: {document['_id']}")
 
+# 스크롤 다운 함수
 def scrollDown(driver):
     last_height = driver.execute_script("return document.body.scrollHeight")
     while True:
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
+        time.sleep(2)  # 스크롤 대기
         new_height = driver.execute_script("return document.body.scrollHeight")
         if new_height == last_height:
             break
         last_height = new_height
 
-# 사용자 정의 대기 조건 함수
-def attribute_to_be(locator, attribute, value):
-    def predicate(driver):
-        element = driver.find_element(*locator)
-        return element.get_attribute(attribute) == value
-    return predicate
-
-# 리뷰 수집
-# 로직 수정 : "쇼핑몰리뷰"탭 클릭 정확히하기..
+# 리뷰 수집 함수 : Selenium 실행 후 BeautifulSoup으로 스크래핑
+# 최신순으로 100개까지 수집, 글자수 50자 이상인것만 수집
 def collectReviews(product_id):
-    url = f"https://search.shopping.naver.com/catalog/{product_id}"
+    start_time = datetime.now()  # 수집 시작 시간 기록
+    url = f"https://search.shopping.naver.com/catalog/{product_id}?section=review"
+    driver.get(url)
+
     try:
-        driver.get(url)
-        review_tab_locator = (By.XPATH, '/html/body/div/div/div[2]/div[2]/div[2]/div[3]/div[1]/ul/li[3]/a')
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located(review_tab_locator))
-        review_tab = driver.find_element(*review_tab_locator)
-        if review_tab.get_attribute('aria-selected') == 'false':
-            review_tab.click()
-            WebDriverWait(driver, 10).until(attribute_to_be(review_tab_locator, 'aria-selected', 'true'))
-        scrollDown(driver)
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        reviews = [p.text for p in soup.select('div.reviewItems_review__DqLYb div.reviewItems_review_text__dq0kE p.reviewItems_text__XrSSf')]
-        reviews_json = json.dumps(reviews)
-        saveDatabase(product_id, reviews_json)
+        # '최신순' 정렬 버튼 클릭
+        sort_button_locator = (By.CSS_SELECTOR, "a[data-nclick='N=a:rev.rec']")
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable(sort_button_locator))
+        driver.find_element(*sort_button_locator).click()
+
+        reviews_collected = []
+        page_number = 1
+
+        while len(reviews_collected) < 100:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.reviewItems_list_review__q726A p.reviewItems_text__XrSSf"))
+            )
+            scrollDown(driver)
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            review_blocks = soup.select("ul.reviewItems_list_review__q726A li")
+
+            for block in review_blocks:
+                review_text = block.select_one("p.reviewItems_text__XrSSf").get_text().strip()
+                review_date = block.select_one("div.reviewItems_etc_area__3VUjt span.reviewItems_etc__9ej69:nth-of-type(4)").get_text().strip()
+                rank = block.select_one("div.reviewItems_etc_area__3VUjt span.reviewItems_average__0kLWX").get_text().strip()
+                rank = int(rank.replace("평점", ""))
+
+                if len(review_text) >= 50:
+                    reviews_collected.append((review_text, review_date, rank))
+                    if len(reviews_collected) % 10 == 0:
+                        print(f"{len(reviews_collected)}개의 리뷰 수집중...")
+
+            if len(reviews_collected) >= 100:
+                print("100개의 리뷰 수집 완료.")
+                break
+
+            # 다음 페이지 버튼 클릭 처리
+            page_number += 1
+            next_page_locator = (By.CSS_SELECTOR, f"a[data-nclick='N=a:rev.page,r:{page_number}']")
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located(next_page_locator))
+            next_page_button = driver.find_element(*next_page_locator)
+            driver.execute_script("arguments[0].scrollIntoView(true);", next_page_button)
+            driver.execute_script("arguments[0].click();", next_page_button)
+            time.sleep(2)  # 페이지 로드 대기
+
+        saveDatabase(product_id, reviews_collected)
+        end_time = datetime.now()  # 수집 종료 시간 기록
+        print(f"수집 완료. 총 소요 시간: {end_time - start_time}")
+
     except Exception as e:
-        print(f"Failed to process URL for product ID {product_id}: {e}")
+        print(f"An exception occurred: {e}")
     finally:
         driver.quit()
 
