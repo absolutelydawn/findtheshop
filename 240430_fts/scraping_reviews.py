@@ -4,9 +4,10 @@
 # 작성자명 : 장다은
 # 작성일자 : 240430
 # url 수정 : section=review추가해서 리뷰탭 바로이동
-# 최신순으로 수집, max 100개리뷰
+# 최신순으로 수집, max 100개리뷰 > 50개리뷰로 변경(속도)
 # contents : 글자수 50자 이상, date : 작성일자, rank : 평점
 # 50자 이상 리뷰 수집 에러 수정, 페이지 버튼 클릭 로직 수정
+# 페이지탐색 최대 10페이지로 제한
 
 # 개선사항 : coding convention 준수하기
 ###
@@ -49,22 +50,22 @@ def collectReviews(product_id):
             reviews_collected = []
             page_number = 1
 
-            while len(reviews_collected) < 100:
+            while len(reviews_collected) < 100 and page_number <= 10:
                 WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.reviewItems_list_review__q726A p.reviewItems_text__XrSSf")))
                 time.sleep(2)
                 soup = BeautifulSoup(driver.page_source, 'html.parser')
                 review_blocks = soup.select("ul.reviewItems_list_review__q726A li")
 
                 for block in review_blocks:
-                    review_text = ' '.join(block.select_one("p.reviewItems_text__XrSSf").stripped_strings)
-                    review_date = block.select_one("div.reviewItems_etc_area__3VUjt span.reviewItems_etc__9ej69:nth-of-type(4)").get_text().strip()
+                    contents = ' '.join(block.select_one("p.reviewItems_text__XrSSf").stripped_strings)
+                    date = block.select_one("div.reviewItems_etc_area__3VUjt span.reviewItems_etc__9ej69:nth-of-type(4)").get_text().strip()
                     rank = block.select_one("div.reviewItems_etc_area__3VUjt span.reviewItems_average__0kLWX").get_text().strip()
                     rank = int(rank.replace("평점", ""))
 
-                    if len(review_text) >= 50:
+                    if len(contents) >= 50:
                         reviews_collected.append({
-                            "review_text": review_text,
-                            "review_date": review_date,
+                            "contents": contents,
+                            "date": date,
                             "rank": rank
                         })
                         if len(reviews_collected) % 10 == 0:
@@ -79,7 +80,6 @@ def collectReviews(product_id):
                 try:
                     next_page_button = WebDriverWait(driver, 10).until(EC.presence_of_element_located(next_page_locator))
                     driver.execute_script("arguments[0].click();", next_page_button)
-                    next_page_button.click()
                 except TimeoutException:
                     print(f"다음 페이지 버튼을 찾을 수 없습니다. 페이지 번호: {page_number}")
                     break
@@ -87,21 +87,15 @@ def collectReviews(product_id):
                     print(f"다음 페이지 버튼을 찾을 수 없습니다. 페이지 번호: {page_number}")
                     break
 
-            # 리뷰가 없는 경우에도 스크래핑은 성공했으므로 빈 리스트를 반환
+            # 리뷰가 없는 경우 : 스크래핑은 성공했으므로 빈 리스트를 반환
             if len(reviews_collected) == 0:
                 print("스크래핑은 성공했지만 리뷰를 찾을 수 없습니다.")
                 return []
 
             # MongoDB에 리뷰 저장
             for review in reviews_collected:
-                document = {
-                    "productId": product_id,
-                    "contents": review["review_text"],
-                    "date": review["review_date"],
-                    "rank": review["rank"]
-                }
-                reviews_collection.insert_one(document)
-                print(f"Added review with _id: {document['_id']}")
+                reviews_collection.insert_one(review)
+                print(f"Added review with _id: {review['_id']}")
 
             return reviews_collected
 

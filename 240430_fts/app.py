@@ -2,19 +2,26 @@
 ###
 # mongoDB에 입력된 리뷰 받아서 서버에 띄우기 :
 # scraping 파일 모듈화하여 수집된 리뷰내용 FastAPI 서버에서 출력가능
+# 리뷰내용들 {"reviews" : reviews} 로 반환(json)
+# GET으로 받으면 mongoDB검토 후 스크래핑로직 실행하기때문에 POST 삭제
+# MySQL 연결 완료
 # 작성자명 : 장다은
 # 작성일자 : 240430
 ###
 
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
 from pydantic import BaseModel
-import os
-import subprocess
+from typing import Optional
+from sqlalchemy.orm import Session
+from database import SessionLocal  # database 모듈에서 SessionLocal 임포트
+from models import ProductID  # models 모듈에서 ProductID 모델 임포트
 from scraping_reviews import collectReviews
+from bson import ObjectId  # ObjectId 처리를 위해 bson 모듈 추가
 
 app = FastAPI()
 
+# MongoDB 설정
 client = MongoClient('mongodb://localhost:27017/')
 db = client['fts']
 reviews_collection = db['reviews']
@@ -22,41 +29,47 @@ reviews_collection = db['reviews']
 class Product(BaseModel):
     product_id: str
 
-@app.get('/', status_code=200)
+@app.get('/')
 async def hello():
     return {"message": "OK"}
 
-@app.get("/reviews", description="리뷰 결과 조회 API입니다.", status_code=201)
-async def get_reviews(product_id: str = Query(None, alias="productId")):
-    if product_id is None:
-        return {"message": "productId가 입력되지 않았습니다. productId를 입력하세요."}
+def transform_id(document):
+    if '_id' in document:
+        document['_id'] = str(document['_id'])  # ObjectId를 문자열로 변환
+    return document
 
-    # 상품 존재 여부 확인
-    product_exists = reviews_collection.count_documents({"productId": product_id})
-    if product_exists == 0:
-        # 상품이 존재하지 않으면 바로 스크래핑 실행
-        scraping_result = collectReviews(product_id)
+@app.get("/reviews/{productId}", status_code=200)
+async def get_reviews(productId: Optional[str] = None):
+    if productId is None:
+        raise HTTPException(status_code=400, detail="productId가 입력되지 않았습니다. productId를 입력하세요.")
+
+    # MySQL에서 상품 존재 여부 확인
+    with SessionLocal() as session:
+        product_exists_in_mysql = session.query(ProductID).filter(ProductID.product_id == productId).first()
+    
+    # MongoDB에서 리뷰 존재 여부 확인
+    product_exists_in_mongo = reviews_collection.count_documents({"productId": productId}) > 0
+
+    if not product_exists_in_mysql and not product_exists_in_mongo:
+        # 상품이 MySQL과 MongoDB에 모두 존재하지 않으면 스크래핑 실행
+        scraping_result = collectReviews(productId)
         if scraping_result:
-            return {"message": "Product ID received and scraping code is done", "reviews": scraping_result}
+            # 스크래핑 결과가 있으면 MySQL에 상품 ID 저장
+            with SessionLocal() as session:
+                session.add(ProductID(product_id=productId))
+                session.commit()
+            # MongoDB에 리뷰 데이터 저장
+            return {"message": "Product ID received and scraping code is done", "reviews": [transform_id(review) for review in scraping_result]}
         else:
             return {"message": "스크래핑은 성공했지만 리뷰를 찾을 수 없습니다."}
 
-    # 리뷰 조회
-    cursor = reviews_collection.find({"productId": product_id}, {"_id": 0})
-    reviews = list(cursor)
-    if reviews:
-        return reviews  # 리뷰가 있으면 그대로 리스트를 반환합니다.
+    # MySQL이나 MongoDB에 상품이 존재하면 MongoDB에서 리뷰 조회
+    if product_exists_in_mongo:
+        cursor = reviews_collection.find({"productId": productId}, {"_id": False})
+        reviews = [transform_id(review) for review in list(cursor)]
+        if reviews:
+            return {"reviews": reviews}
+        else:
+            return {"message": "리뷰 검색 결과가 없습니다."}
     else:
-        return {"message": "리뷰 검색 결과가 없습니다."}  # 리뷰가 없으면 메시지를 반환합니다.
-
-@app.post("/submit_product")
-async def submit_product(product: Product):
-    with open("product_id.txt", "w") as file:
-        file.write(product.product_id)
-
-    # 스크래핑 실행
-    scraping_result = collectReviews(product.product_id)
-    if scraping_result:
-        return {"message": "Product ID received and executed the scraping script.", "reviews": scraping_result}
-    else:
-        return {"message": "스크래핑은 성공했지만 리뷰를 찾을 수 없습니다."}
+        return {"message": "리뷰 검색 결과가 없습니다."}
