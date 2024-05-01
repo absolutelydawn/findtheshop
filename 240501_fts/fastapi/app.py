@@ -4,6 +4,7 @@
 # scraping 파일 모듈화하여 수집된 리뷰내용 FastAPI 서버에서 출력가능
 # 리뷰내용들 {"reviews" : reviews} 로 반환(json)
 # GET으로 받으면 mongoDB검토 후 스크래핑로직 실행하기때문에 POST 삭제
+# GET method 경로 수정함
 # MySQL 연결 완료
 # 작성자명 : 장다은
 # 작성일자 : 240430
@@ -18,8 +19,22 @@ from database import SessionLocal  # database 모듈에서 SessionLocal 임포�
 from models import ProductID  # models 모듈에서 ProductID 모델 임포트
 from scraping_reviews import collectReviews
 from bson import ObjectId  # ObjectId 처리를 위해 bson 모듈 추가
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+# 상대 경로 사용하여 .env 파일 로드
+load_dotenv("../config/.env")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 도메인 허용
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP 메소드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
+)
 
 # MongoDB 설정
 client = MongoClient('mongodb://localhost:27017/')
@@ -73,3 +88,5 @@ async def get_reviews(productId: Optional[str] = None):
             return {"message": "리뷰 검색 결과가 없습니다."}
     else:
         return {"message": "리뷰 검색 결과가 없습니다."}
+    
+# @app.delete() >> delete 로직 완성하기

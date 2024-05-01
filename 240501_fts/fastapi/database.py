@@ -8,7 +8,7 @@ import json
 
 # 경로 설정 및 secret.json 로드
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-secret_file = os.path.join(BASE_DIR, 'secret.json')
+secret_file = os.path.join(BASE_DIR, '../config/secret.json')
 
 with open(secret_file) as f:
     secrets = json.loads(f.read())
