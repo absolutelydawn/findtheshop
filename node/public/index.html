@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>#FINDTHESHOP</title>
+    <link rel="stylesheet" href="reset.css" type="text/css">
+    <link rel="stylesheet" href="main.css" type="text/css">
+</head>
+<body>
+    <div id="wrap">
+        <nav>
+            <div class="logo"><a href="">#FINDTHESHOP</a></div>
+            
+            <div class="navbar">
+                <ul>
+                    <li><a href="/">HOME</a></li>
+                    <li><a href="views" target="_self">Product</a></li>
+                </ul>
+            </div>
+        </nav>
+    </div>
+    <div id="wrap">
+        <div class="section1">
+            <div class="title">#FINDTHESHOP</div>
+            
+            <div class="search">
+                <form action="itemlist" method="get" name="itemForm">
+                    <input type="text" name="query" size="10" id="product" placeholder="상품을 검색하세요. 최저가 상품을 찾아드립니다!">
+                    <button type="submit" id="submit" value="itemlist">search
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="section2">
+            <iframe class="iframe-preview center" width="100%" height="500" style="border: none;" src="view" frameborder='0' scrolling="no">
+            </iframe>
+        </div>
+    </div>
+</body>
+</html>

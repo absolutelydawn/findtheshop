@@ -3,6 +3,11 @@
 *.xml
 *.iml
 
-# openapi 사용해서 끌어온 json 파일 막는 용
-*.json
+# json 
+package-lock.json
+secret.json
+items.json
 
+/**/__pycache__/
+/node_modules/
+/**/node_modules/

@@ -1,0 +1,102 @@
+@charset 'utf-8';
+
+@font-face {
+  font-family: 'KCC-Hanbit';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2403-2@1.0/KCC-Hanbit.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+
+html {
+  -moz-text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+
+body,
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin-block-end: 0;
+  font-family: 'KCC-Hanbit';
+  font-weight: 200;
+  color: #252525;
+}
+
+
+ul,
+ol,
+li {
+  list-style: none;
+}
+
+
+body {
+  min-height: 100vh;
+  line-height: 1.5;
+  
+}
+
+
+h1,
+h2,
+h3,
+h4,
+button,
+input,
+label {
+  line-height: 1.1;
+}
+
+
+
+a{
+  text-decoration: none;
+  color: inherit;
+}
+
+
+img,
+picture {
+  max-width: 100%;
+  display: block;
+}
+
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+
+textarea:not([rows]) {
+  min-height: 10em;
+}
+
+
+:target {
+  scroll-margin-block: 5ex;
+}
+
+
+input {
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+}
