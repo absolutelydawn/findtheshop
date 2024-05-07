@@ -1,0 +1,118 @@
+<!--
+    리뷰수집 결과 페이지
+    node server에서 / 경로로 접근했을 때 현재 페이지로 접속하고 입력창에 productId를 입력 후 제출하면 리뷰 수집 결과가 동적으로 추가됨
+    productId 입력 후 로딩메세지 추가
+    front server 추가완료 : apache2 포트번호 8050
+    li 출력할때 옆에 점 삭제 완료
+    작성자명 : 장다은
+    작성일자 : 240501
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Reviews</title>
+    <style>
+        #productSection {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        #productDetails {
+            display: flex;
+            flex-direction: column;
+        }
+        #productLinks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .link-item {
+            border: 1px solid #ccc;
+            padding: 5px;
+        }
+        #productImage {
+            width: 50%;
+            height: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        #productInfo {
+            width: 48%;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        #reviewsSection {
+            clear: both;
+            border-top: 2px solid #ccc;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <form id="productForm">
+            Product ID: <input type="text" id="productId" name="productId"/>
+            <button type="submit" id="submitBtn">Submit</button>
+        </form>
+    </div>
+    <div id="productSection">
+        <div id="productImage">
+            <h3>상품이미지는 여기에</h3>
+        </div>
+        <div id="productInfo">
+            <p id="productName"><strong>제품명:</strong> 상품명이 여기에</p>
+            <div id="productLinks">
+                <!-- 링크와 가격 정보가 동적으로 여기에 추가됩니다. -->
+            </div>
+        </div>
+    </div>
+    <div id="reviewsSection">
+        <h2>상품리뷰섹션</h2>
+        <div id="statusMessage"></div>
+        <ul id="reviewsList" style="list-style: none;">
+            <!-- 리뷰 내용이 여기에... 짜잔^^v -->
+        </ul>
+    </div>
+
+    <script>
+    document.getElementById('submitBtn').addEventListener('click', async function() {
+        const productId = document.getElementById('productId').value;
+        if (productId) {
+            try {
+                const response = await fetch(`http://localhost:3000/reviews/${productId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('productImage').innerHTML = `<img src="${data.item.image}" alt="Product Image" style="max-width:100%; height:auto;">`;
+                    document.getElementById('productName').innerHTML = `<strong>제품명:</strong> ${data.item.title}`;
+                    
+                    const linksContainer = document.getElementById('productLinks');
+                    linksContainer.innerHTML = ''; // Clear previous links if any
+                    
+                    data.item.links.forEach(link => {
+                        const linkElem = document.createElement('div');
+                        linkElem.className = 'link-item';
+                        linkElem.innerHTML = `<a href="${link.url}" target="_blank">Link</a> - ${link.price} 원`;
+                        linksContainer.appendChild(linkElem);
+                    });
+                } else {
+                    console.error('서버 응답에 문제가 있습니다:', data);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        } else {
+            alert('productId를 입력하세요.');
+        }
+    });
+    </script>
+</body>
+</html>
