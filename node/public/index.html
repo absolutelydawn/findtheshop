@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FINDTHESHOP</title>
+    <link rel="stylesheet" href="reset.css" type="text/css">
+    <link rel="stylesheet" href="main.css" type="text/css">
+</head>
+<body>
+    <div id="wrap">
+        <nav>
+            <div class="logo"><a href="#">로고</a></div>
+            <div class="navbar">
+                <ul>
+                    <li><a href="#">HOME</a></li>
+                    <li><a href="#">Product</a></li>
+                </ul>
+            </div>
+        </nav>
+    </div>
+    <div id="wrap">
+        <div class="section1">
+            <div class="title">#FINDTHESHOP</div>
+            <div class="search">
+                <form action="itemlist" method="post" target="targetURL" name="itemForm">
+                    <input type="text" name="query" size="10" id="product" placeholder="상품을 검색하세요..">
+                    <button type="submit" id="submit" value="/itemlist">search
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="section2">
+            <div class="itemtilte">
+                <h3>최근 본 상품</h3>
+            </div>
+            <div class="productList">
+                <ul>
+                    <li>
+                        <a href="">
+                            <div class="image">
+                                <img src="./test.jpg" alt="">
+                            </div>
+                            <div class="itemtitle">상품명이 나오겠죵?</div>
+                            <div class="lprice">최저가 5000원</div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
